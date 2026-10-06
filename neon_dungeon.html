@@ -1,0 +1,901 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>NEON DUNGEON - HTML Roguelike</title>
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#080a10;--panel:#111521;--panel2:#171c2a;--line:#2c3549;--floor:#273044;--floor2:#222a3b;--wall:#080b12;
+  --text:#eef2ff;--muted:#8994aa;--accent:#65e6b0;--danger:#ff657a;--gold:#ffd166;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,sans-serif}
+body{min-height:100vh;display:flex;justify-content:center}
+#app{width:100%;max-width:1100px;min-height:100vh;background:var(--bg);padding:14px}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
+h1{font-size:20px;letter-spacing:2px;margin:0}
+.badge{font-size:11px;color:var(--accent);border:1px solid #315e50;border-radius:999px;padding:4px 8px}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:12px}
+.gamebox,.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px}
+.gamebox{padding:10px}
+#game{display:block;width:100%;max-height:70vh;background:#070910;border-radius:10px;image-rendering:pixelated}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:9px}
+.stat{background:var(--panel2);border-radius:9px;padding:7px;text-align:center}
+.stat b{display:block;font-size:14px}.stat span{font-size:10px;color:var(--muted)}
+.panel{padding:13px}
+.panel h2{font-size:13px;margin:0 0 10px;color:var(--accent)}
+.log{height:180px;overflow:auto;background:#090c13;border:1px solid var(--line);border-radius:9px;padding:8px;font-size:11px;line-height:1.5}
+.log div{margin-bottom:4px}.controls{margin-top:12px}.boss-hud{display:none;margin:0 0 9px;background:#0a0d15;border:2px solid #a855f7;border-radius:12px;padding:10px 11px;box-shadow:0 0 18px rgba(168,85,247,.18)}.boss-hud.show{display:block}.boss-name{display:flex;justify-content:space-between;gap:8px;align-items:center;font-weight:900;font-size:14px;margin-bottom:7px}.boss-name span:last-child{font-size:11px;color:#d9e0ef}.boss-track{height:24px;background:#090b11;border:1px solid #3b455c;border-radius:999px;overflow:hidden;box-shadow:inset 0 0 8px rgba(0,0,0,.7)}.boss-fill{height:100%;width:100%;background:#a855f7;transition:width .2s ease,background .2s ease}.boss-sub{font-size:10px;color:#aeb8cc;margin-top:5px;text-align:center}.combat-hud{margin-top:10px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:9px}.hp-row{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:800;margin-bottom:6px}.hp-track{height:15px;background:#090c13;border:1px solid #354057;border-radius:999px;overflow:hidden}.hp-fill{height:100%;width:100%;background:var(--accent);transition:width .2s ease,background .2s ease}.hud-row{display:flex;justify-content:space-between;gap:8px;margin-top:7px}.potion-count{font-size:12px;color:var(--gold);font-weight:800}
+.dpad{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;max-width:210px;margin:auto}
+button{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:10px;min-height:42px;font-weight:700;cursor:pointer}
+button:active{transform:scale(.97);background:#20283a}
+.dpad .blank{visibility:hidden}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}.actions button.aiming{border-color:#c77dff;box-shadow:0 0 0 2px rgba(199,125,255,.18);color:#e5c8ff}
+.help{font-size:11px;color:var(--muted);line-height:1.6;margin-top:12px}
+#hpForecast.lethal-warning{color:#fff!important;background:rgba(255,45,75,.22);border:1px solid #ff4057;border-radius:7px;padding:6px 8px;font-weight:900;box-shadow:0 0 12px rgba(255,55,75,.24);animation:lethalPulse .8s ease-in-out infinite alternate}
+@keyframes lethalPulse{from{background:rgba(255,45,75,.16)}to{background:rgba(255,45,75,.4)}}
+@media(prefers-reduced-motion:reduce){#hpForecast.lethal-warning{animation:none}}
+.savebox{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}
+#overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);display:none;align-items:center;justify-content:center;padding:20px;z-index:10}
+.modal{max-width:420px;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;text-align:center}
+.modal h2{margin-top:0}.modal p{color:var(--muted);font-size:13px;line-height:1.6}
+.modal button{width:100%;margin-top:8px}
+.upgrade-grid{display:grid;grid-template-columns:1fr;gap:8px;margin:14px 0}
+.upgrade-card{padding:12px;text-align:left;border:1px solid #3b4861;background:#171e2d;border-radius:10px}
+.upgrade-card b{display:block;color:var(--accent);margin-bottom:4px}
+.upgrade-card span{font-size:11px;color:var(--muted)}
+.upgrade-card:active{background:#253049}
+@media(max-width:760px){
+  #app{padding:9px}.layout{grid-template-columns:1fr}.panel{order:2}
+  .log{height:120px}.help{display:none}
+  #game{max-height:none}
+  h1{font-size:16px}.stats{grid-template-columns:repeat(4,1fr)}
+}
+.aoe-btn{font-size:20px;font-weight:900}.aoe-btn.aoe-ready{border-color:#c77dff;color:#e5c8ff;box-shadow:0 0 10px rgba(199,125,255,.2)}.aoe-btn.aoe-cooldown{opacity:.55;color:#999}
+</style>
+</head>
+<body>
+<div id="app">
+<header><h1>NEON DUNGEON</h1><span class="badge">ROGUELIKE / AUTOSAVE</span></header>
+<div class="layout">
+<section class="gamebox">
+<div id="bossHud" class="boss-hud"><div class="boss-name"><span id="bossName">BOSS</span><span id="bossHpText">0 / 0</span></div><div class="boss-track"><div id="bossHpBar" class="boss-fill"></div></div><div id="bossSub" class="boss-sub">보스</div></div>
+<canvas id="game" width="800" height="560" aria-label="게임 화면"></canvas>
+<div style="display:flex;gap:10px;flex-wrap:wrap;padding:7px 4px 2px;font-size:10px;color:#aeb8cc"><span>🟩 플레이어</span><span>🟥 적</span><span>🟨 계단</span><span>🟦 밝은 타일 = 이동 가능</span></div><div class="stats">
+ <div class="stat"><b id="hp">-</b><span>HP</span></div>
+ <div class="stat"><b id="atk">-</b><span>공격</span></div>
+ <div class="stat"><b id="lv">-</b><span>레벨</span></div>
+ <div class="stat"><b id="floor">-</b><span>층</span></div>
+</div>
+<div class="combat-hud">
+ <div class="hp-row"><span>체력</span><span id="hpText">-</span></div>
+ <div class="hp-track" aria-label="주인공 체력"><div class="hp-fill" id="hpBar"></div></div>
+ <div id="hpForecast" style="font-size:11px;color:#ffb3bd;margin-top:4px">다음 턴 예상 피해 없음</div>
+ <div class="hud-row"><span class="potion-count" id="potionCount">💊 회복 물약 ×0</span><span id="aoeHud">💥 준비</span><span id="guardHud">🛡 가드 준비</span><span id="comboHud">콤보 ×0</span><span id="xpHud">Lv.1</span></div>
+</div>
+<div class="controls">
+ <div class="dpad">
+  <span class="blank"></span><button data-move="0,-1">▲</button><span class="blank"></span>
+  <button data-move="-1,0">◀</button><button id="aoeBtn" class="aoe-btn" aria-label="범위 공격">.</button><button data-move="1,0">▶</button>
+  <span class="blank"></span><button data-move="0,1">▼</button><span class="blank"></span>
+ </div>
+ <div class="actions"><button data-action="stairs">층 이동 (E)</button><button data-action="heal">회복 물약 (H)</button><button data-action="ranged">🏹 원거리 공격 (F)</button><button data-action="guard">🛡 가드 (G)</button><button data-action="wait">대기 (Space)</button></div>
+</div>
+</section>
+<aside class="panel">
+<h2>COMBAT LOG</h2>
+<div class="log" id="log"></div>
+<div class="savebox">
+<button id="save">저장</button><button id="load">불러오기</button>
+</div>
+<div class="help">
+<b>PC:</b> WASD / 방향키 이동 · H 회복 · F 원거리 · Q 범위공격 · E 계단 · G 가드 · Space 대기<br>
+<b>모바일:</b> 화면 버튼으로 이동<br>
+초록 = 플레이어 · 빨강 = 적 · 금색 = 계단<br>
+적 옆으로 이동하면 자동 공격. 적도 한 칸씩 반격함.<br>🏹 원거리 공격을 누르면 보라색으로 공격 가능 범위가 표시됨. 최대 6칸, 직선 방향만 공격 가능하며 피해량은 공격력과 같음. 모든 공격은 10% 확률로 치명타(1.5배). 연속 공격 콤보마다 피해 +3%(최대 +30%). Q 범위 공격은 주인공 주위 8칸을 공격하고 쿨타임 3턴.<br>노란 선과 점 = 적의 실제 다음 이동 칸 / 붉은 X 타일 = 공격 예정 칸 / 적 위의 빨간 ! = 다음 턴 공격 적 / 보라색 큰 적 = 보스. 적 능력치는 후반으로 갈수록 지수 곡선으로 더 크게 상승. 적 처치 XP는 층마다 소폭만 증가. 보스는 체력이 줄면 페이즈가 강화됨. G 가드는 피해 50% 감소, 적 공격 예고 중 사용하면 퍼펙트 가드 및 다음 공격 강화.<br>10/20/30층은 3종 보스 중 랜덤, 40층은 강화 보스, 50층은 최종 보스. 보스 HP는 화면 위에 크게 표시되며, 처치하면 다음 층으로 진행.<br>
+매 행동마다 자동 저장. 브라우저의 사이트 데이터가 삭제되면 저장도 사라짐.
+</div>
+</aside>
+</div>
+</div>
+<div id="overlay">
+<div class="modal">
+<h2 id="modalTitle">GAME OVER</h2>
+<p id="modalText"></p>
+<button id="restart">새 게임</button>
+<div id="upgradeChoices" style="display:none"></div>
+<button id="resume" style="display:none">저장된 게임 계속</button>
+</div>
+</div>
+
+<script>
+"use strict";
+const W=20,H=14,T=40;
+const canvas=document.getElementById("game"),ctx=canvas.getContext("2d");
+const $=id=>document.getElementById(id);
+let game=null;
+let upgradeChoices=null;
+let damageAnimationRunning=false;
+
+const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+const rnd=(n)=>Math.floor(Math.random()*n);
+const key=(x,y)=>x+","+y;
+
+function log(s){
+  const d=document.createElement("div"); d.textContent=s;
+  $("log").prepend(d);
+  while($("log").children.length>60)$("log").lastChild.remove();
+}
+function emptyMap(){
+  return Array.from({length:H},()=>Array(W).fill("#"));
+}
+function neighbors(x,y){
+  return [[x+1,y],[x-1,y],[x,y+1],[x,y-1]].filter(([a,b])=>a>=1&&a<W-1&&b>=1&&b<H-1);
+}
+function makeFloor(floor){
+  const map=emptyMap(), rooms=[];
+  for(let tries=0;tries<80 && rooms.length<14;tries++){
+    const rw=3+rnd(5), rh=3+rnd(4), x=1+rnd(W-rw-2), y=1+rnd(H-rh-2);
+    if(rooms.some(r=>x<r.x+r.w+1&&x+rw+1>r.x&&y<r.y+r.h+1&&y+rh+1>r.y)) continue;
+    for(let yy=y;yy<y+rh;yy++)for(let xx=x;xx<x+rw;xx++)map[yy][xx]=".";
+    if(rooms.length){
+      const a=rooms[rooms.length-1], ax=a.x+Math.floor(a.w/2), ay=a.y+Math.floor(a.h/2);
+      const bx=x+Math.floor(rw/2), by=y+Math.floor(rh/2);
+      let cx=ax,cy=ay;
+      while(cx!==bx){map[cy][cx]=".";cx+=Math.sign(bx-cx)}
+      while(cy!==by){map[cy][cx]=".";cy+=Math.sign(by-cy)}
+    }
+    rooms.push({x,y,w:rw,h:rh});
+  }
+  if(!rooms.length) return makeFloor(floor);
+  const first=rooms[0], last=rooms[rooms.length-1];
+  const p={x:first.x+1,y:first.y+1};
+  const s={x:last.x+Math.floor(last.w/2),y:last.y+Math.floor(last.h/2)};
+  map[s.y][s.x]=">";
+  const enemies=[];
+  // 적은 매 층마다 더 강해지며, 층이 오를수록 적 무리도 커진다.
+  const count=Math.min(3+Math.floor(floor*0.75),14);
+  for(let i=0;i<count;i++){
+    for(let tries=0;tries<100;tries++){
+      const x=1+rnd(W-2),y=1+rnd(H-2);
+      if(map[y][x]==="." && (x!==p.x||y!==p.y) && (x!==s.x||y!==s.y) &&
+         Math.abs(x-p.x)+Math.abs(y-p.y)>5 &&
+         !enemies.some(e=>e.x===x&&e.y===y)){ 
+        const types=["crawler","brute","shooter"], type=types[rnd(types.length)];
+        const base=type==="brute"?18:type==="shooter"?11:9;
+        const t=Math.min(1,(floor-1)/49);
+        const growth=(1-Math.exp(-4.5*t))/(1-Math.exp(-4.5));
+        const floorStep=floor-1;
+        const hpScale=1.5+floorStep*0.05+0.18*(Math.exp(3*t)-1);
+        const hp=Math.round((base + (base*3.0)*growth + (floor*0.45))*hpScale);
+        const atkBase=type==="brute"?3:type==="shooter"?2:2;
+        const atkScale=1.25+floorStep*0.035+0.12*(Math.exp(2.5*t)-1);
+        const atk=Math.max(1,Math.round((atkBase + (atkBase*2.6)*growth + floor*0.07)*atkScale));
+        enemies.push({x,y,type,hp,maxHp:hp,atk});
+        break;
+      }
+    }
+  }
+  if(floor%10===0){
+    const patterns=["berserker","arcane","summoner"];
+    let pattern;
+    if(floor===10||floor===20||floor===30){
+      const available=patterns.filter(x=>!(game.bossHistory||[]).includes(x));
+      pattern=(available.length?available:patterns)[rnd(available.length?available.length:patterns.length)];
+      game.bossHistory=game.bossHistory||[];
+      if(!game.bossHistory.includes(pattern)) game.bossHistory.push(pattern);
+    }else{
+      pattern=floor===50?"arcane":patterns[rnd(patterns.length)];
+    }
+    const isFinal=floor===50;
+    const isEnhanced=floor===40;
+    const bossHpBase={berserker:150,arcane:135,summoner:165}[pattern];
+    const bossAtkBase={berserker:9,arcane:8,summoner:7}[pattern];
+    const baseHp=isFinal?900:(isEnhanced?Math.round(bossHpBase*1.9):bossHpBase+floor*5);
+    const baseAtk=isFinal?24:(isEnhanced?Math.round(bossAtkBase*1.65)+Math.floor(floor/8):bossAtkBase+Math.floor(floor/5));
+    const bossT=Math.max(0,Math.min(1,(floor-1)/49));
+    const bossCurve=(Math.exp(2.2*bossT)-1)/(Math.exp(2.2)-1);
+    const hp=Math.round(baseHp*(1+1.1*bossCurve));
+    const atk=Math.round(baseAtk*(1+0.7*bossCurve));
+    const bossNames={berserker:"철갑 파괴자",arcane:"공허술사",summoner:"군단의 어머니"};
+    const name=isFinal?"NEON CORE · 최종 관리자":bossNames[pattern];
+    const candidates=[];
+    for(let yy=1;yy<H-1;yy++)for(let xx=1;xx<W-1;xx++){
+      if(map[yy][xx]==="." && !(xx===p.x&&yy===p.y) && !(xx===s.x&&yy===s.y) && !enemies.some(e=>e.x===xx&&e.y===yy) && Math.abs(xx-p.x)+Math.abs(yy-p.y)>=5) candidates.push([xx,yy]);
+    }
+    let spawn=candidates.filter(([xx,yy])=>Math.abs(xx-s.x)+Math.abs(yy-s.y)<=6);
+    if(!spawn.length)spawn=candidates;
+    const [bx,by]=spawn[rnd(spawn.length)]||[Math.max(1,s.x-1),Math.max(1,s.y-1)];
+    enemies.push({x:bx,y:by,type:"boss",pattern,hp,maxHp:hp,atk,phase:0,name,finalBoss:isFinal,enhanced:isEnhanced});
+  }
+  const loot=[];
+  const lootN=Math.min(4,2+Math.floor(floor/6)+rnd(2));
+  for(let i=0;i<lootN;i++){
+    for(let tries=0;tries<100;tries++){
+      const x=1+rnd(W-2),y=1+rnd(H-2);
+      if(map[y][x]==="."&&!enemies.some(e=>e.x===x&&e.y===y)&&key(x,y)!==key(p.x,p.y)){
+        loot.push({x,y,type:"heal"});break;
+      }
+    }
+  }
+  return {map,player:p,stairs:s,enemies,loot};
+}
+
+function newGame(){
+  game={floor:1,xp:0,level:1,maxLevel:50,maxHp:35,hp:35,atk:7,potions:2,score:0,dead:false,killHeal:0,upgradeLevels:{hp:0,atk:0,heal:0},seed:Date.now(),bossDefeated:false,aiming:false,aoeCd:0,bossHistory:[],guarding:false,perfectGuard:false,attackBonus:0,combo:0,damageNumbers:[],enemyBalanceVersion:3};
+  buildFloor();
+  $("overlay").style.display="none";
+  log("새 런 시작. 인간은 또 던전에 들어간다.");
+  saveGame();
+}
+function buildFloor(){
+  const f=makeFloor(game.floor);
+  game.map=f.map;game.x=f.player.x;game.y=f.player.y;game.stairs=f.stairs;
+  game.enemies=f.enemies;game.loot=f.loot;game.damageNumbers=[];game.bossDefeated=game.floor%10!==0;
+  log(game.floor===1?"탐험 시작.":"다음 층에 도착.");
+  if(game.floor%10===0){const b=game.enemies.find(e=>e.type==="boss");if(b)log("⚠ 보스 출현: "+b.name+" / 고유 패턴: "+(b.pattern==="berserker"?"돌진":b.pattern==="arcane"?"직선 마법":"소환"));}
+  render();
+}
+function xpThreshold(level){
+  if(level>=50)return Infinity;
+  // 필요 경험치를 레벨에 따라 지수적으로 높여 후반 성장을 늦춘다.
+  return Math.round(25*Math.pow(1.09,level-1));
+}
+function xpReward(){
+  // 처치 보상은 층마다 천천히만 오르므로, 후반에는 요구량을 따라잡지 못한다.
+  return Math.round(10+game.floor*0.25);
+}
+function xpToNext(){
+  return xpThreshold(game.level);
+}
+function gainXP(n){
+  game.xp+=n;
+  if(game.level>=50)return;
+  if(game.xp>=xpToNext()&&!upgradeChoices){
+    game.xp-=xpToNext();
+    game.level=Math.min(50,game.level+1);
+    game.maxHp+=5;
+    const levelUpHeal=Math.ceil((game.maxHp-game.hp)/2);
+    game.hp=Math.min(game.maxHp,game.hp+levelUpHeal);
+    log("레벨업 회복: HP +"+levelUpHeal+" (부족 체력의 절반).");
+    showUpgradeChoices();
+  }
+}
+
+function upgradeScale(level){
+  // 초반 가파르게 증가하고 고레벨에서 점점 수평에 가까워지는 성장곡선.
+  const t=Math.max(0,Math.min(1,(level-1)/12));
+  return 1 + 4.5*(1-Math.exp(-4*t));
+}
+
+function showUpgradeChoices(){
+  game.upgradeLevels=game.upgradeLevels||{hp:0,atk:0,heal:0};
+  if(game.level>=50){ upgradeChoices=null; return; }
+  const choices=[
+    {key:"hp",name:"강철 심장",base:12,unit:"최대 HP",apply:()=>{
+      const lv=game.upgradeLevels.hp+1, amount=Math.round(12*upgradeScale(lv));
+      game.upgradeLevels.hp=lv; game.maxHp+=amount; game.hp+=amount;
+      return `강철 심장 Lv.${lv}: 최대 HP +${amount}`;
+    }},
+    {key:"atk",name:"날카로운 무기",base:3,unit:"공격력",apply:()=>{
+      const lv=game.upgradeLevels.atk+1, amount=Math.max(1,Math.round(3*upgradeScale(lv)));
+      game.upgradeLevels.atk=lv; game.atk+=amount;
+      return `날카로운 무기 Lv.${lv}: 공격력 +${amount}`;
+    }},
+    {key:"heal",name:"전투 회복",base:5,unit:"처치 회복",apply:()=>{
+      const lv=game.upgradeLevels.heal+1, amount=Math.max(1,Math.round(5*upgradeScale(lv)));
+      game.upgradeLevels.heal=lv; game.killHeal=(game.killHeal||0)+amount;
+      return `전투 회복 Lv.${lv}: 처치 회복 +${amount} HP`;
+    }}
+  ];
+  upgradeChoices=choices;
+  const box=$("upgradeChoices");
+  box.innerHTML='<div class="upgrade-grid"></div>';
+  choices.forEach((c,i)=>{
+    const b=document.createElement("button");
+    b.className="upgrade-card";
+    const currentLv=(game.upgradeLevels[c.key]||0)+1;
+    const amount=Math.max(1,Math.round(c.base*upgradeScale(currentLv)));
+    b.innerHTML="<b>"+(i+1)+". "+c.name+" Lv."+currentLv+"</b><span>다음 효과: "+c.unit+" +"+amount+" · 레벨이 오를수록 상승폭이 점차 완만해짐</span>";
+    b.onclick=()=>{
+      const result=c.apply();
+      upgradeChoices=null;
+      box.style.display="none";
+      $("restart").style.display="block";
+      $("modalTitle").textContent="LEVEL UP";
+      $("modalText").textContent="강화 선택 완료.";
+      $("overlay").style.display="none";
+      log("강화 선택: "+result);
+      saveGame();
+      render();
+    };
+    box.firstChild.appendChild(b);
+  });
+  $("modalTitle").textContent="LEVEL UP";
+  $("modalText").textContent="강화 아이템 3개 중 하나를 선택하세요.";
+  $("upgradeChoices").style.display="block";
+  $("restart").style.display="none";
+  $("resume").style.display="none";
+  $("overlay").style.display="flex";
+}
+function incomingDamage(amount){
+  if(!game.guarding)return amount;
+  const reduced=Math.ceil(amount*0.5);
+  if(game.perfectGuard){game.attackBonus=Math.max(game.attackBonus,Math.ceil(game.atk*0.75));log("✨ 퍼펙트 가드! 다음 공격 피해 +"+game.attackBonus+".");}
+  log("🛡 가드로 피해를 "+amount+" → "+reduced+"로 감소.");
+  return reduced;
+}
+function beginPlayerAttack(){
+  game.combo=(game.combo||0)+1;
+  const bonus=Math.min(game.combo,10)*3;
+  log("콤보 "+game.combo+" · 공격 피해 +"+bonus+"%.");
+}
+function showDamageNumber(target,damage,critical){
+  game.damageNumbers=game.damageNumbers||[];
+  game.damageNumbers.push({x:target.x,y:target.y,damage,critical,time:Date.now()});
+  if(game.damageNumbers.length>40)game.damageNumbers.splice(0,game.damageNumbers.length-40);
+  if(!damageAnimationRunning){damageAnimationRunning=true;requestAnimationFrame(animateDamageNumbers)}
+}
+function animateDamageNumbers(){
+  if(!game||!game.damageNumbers||!game.damageNumbers.length){damageAnimationRunning=false;return}
+  render();
+  requestAnimationFrame(animateDamageNumbers);
+}
+function drawDamageNumbers(){
+  const now=Date.now();
+  game.damageNumbers=(game.damageNumbers||[]).filter(n=>now-n.time<900);
+  for(const n of game.damageNumbers){
+    const progress=(now-n.time)/900;
+    const x=n.x*T+20,y=n.y*T-4-progress*22;
+    ctx.save();ctx.globalAlpha=Math.max(0,1-progress);
+    ctx.font="900 17px system-ui,sans-serif";ctx.textAlign="center";ctx.textBaseline="bottom";
+    ctx.lineWidth=4;ctx.strokeStyle="#080a10";ctx.strokeText("-"+n.damage,x,y);
+    ctx.fillStyle=n.critical?"#ffe34d":"#ff4057";ctx.fillText("-"+n.damage,x,y);ctx.restore();
+  }
+}
+function dealPlayerAttack(target,base,kind){
+  let damage=base+(game.attackBonus||0);
+  if(game.attackBonus){log("가드 반격 보너스 피해 +"+game.attackBonus+".");game.attackBonus=0;}
+  if(target.type==="boss"){
+    const ratio=target.hp/target.maxHp, stage=ratio<=.33?2:ratio<=.66?1:0;
+    if(stage>(target.stage||0)){target.stage=stage;log("⚠ "+target.name+" 페이즈 "+(stage+1)+"! 공격이 강화된다.");}
+  }
+  if(game.hp<=game.maxHp*.25){damage=Math.ceil(damage*1.25);log("위험 보너스! 낮은 HP로 공격 피해 상승.");}
+  damage=Math.ceil(damage*(1+Math.min(game.combo||0,10)*0.03));
+  const critical=Math.random()<0.1;
+  if(critical){damage=Math.ceil(damage*1.5);log("💥 치명타! 피해 1.5배.");}
+  target.hp-=damage;
+  showDamageNumber(target,damage,critical);
+  return damage;
+}
+function enemyRange(){return 5+Math.floor((game.floor-1)/10)}
+function enemyAt(x,y){return game.enemies.find(e=>e.x===x&&e.y===y)}
+function completeFloorIfCleared(){
+  if(game.enemies.length!==0)return false;
+  const found=game.loot.length;
+  if(found){
+    game.potions+=found;
+    game.loot=[];
+    log("🎁 층의 모든 적을 처치했다! 필드의 회복 물약 "+found+"개를 모두 획득.");
+  }else{
+    log("🎁 층의 모든 적을 처치했다! 다음 층으로 이동.");
+  }
+  if(game.floor>=50){gameWin();return true;}
+  game.floor++;
+  game.score+=game.floor*10;
+  buildFloor();
+  saveGame();
+  return true;
+}
+function lootAt(x,y){return game.loot.findIndex(e=>e.x===x&&e.y===y)}
+function playerTurn(dx,dy){
+  if(game.dead)return;
+  const nx=game.x+dx,ny=game.y+dy;
+  if(nx<0||ny<0||nx>=W||ny>=H||game.map[ny][nx]==="#"){log("벽이다.");return;}
+  const e=enemyAt(nx,ny);
+  if(e){
+    beginPlayerAttack();
+    const dmg=dealPlayerAttack(e,game.atk+rnd(4),"melee"); log("공격! "+dmg+" 피해.");
+    if(e.hp<=0){
+      game.enemies=game.enemies.filter(v=>v!==e);
+      if(e.type==="boss"){game.bossDefeated=true;game.score+=100+game.floor*10;if(game.floor===50){gameWin();return;}log("보스 처치! 다음 층으로 갈 수 있다.");}
+      else game.score+=10;
+      if(game.killHeal){
+        const healed=Math.min(game.killHeal,game.maxHp-game.hp);
+        game.hp+=healed;
+        if(healed)log("전투 회복으로 HP +"+healed+".");
+      }
+      gainXP(xpReward());
+      log("적 처치. 경험치 획득.");
+      if(completeFloorIfCleared())return;
+    }else enemyTurn();
+    endTurn();return;
+  }
+  game.combo=0;game.x=nx;game.y=ny;
+  const li=lootAt(nx,ny);
+  if(li>=0){
+    const item=game.loot.splice(li,1)[0];
+    game.potions++;
+    log("회복 물약 +1.");
+  }
+  if(nx===game.stairs.x&&ny===game.stairs.y){log("계단 발견. '층 이동'을 눌러 진행.");}
+  enemyTurn();endTurn();
+}
+function aoeCells(){
+  const cells=new Set(), add=(x,y)=>{
+    if(x<0||y<0||x>=W||y>=H||game.map[y][x]==="#")return;
+    cells.add(x+","+y);
+  };
+  for(let y=game.y-1;y<=game.y+1;y++)for(let x=game.x-1;x<=game.x+1;x++){
+    if((x!==game.x||y!==game.y)&&Math.max(Math.abs(x-game.x),Math.abs(y-game.y))<=1)add(x,y);
+  }
+  return cells;
+}
+function drawAoERange(){
+  if(!game.aoePreview)return;
+  ctx.save();ctx.globalAlpha=.24;ctx.fillStyle="#c77dff";ctx.strokeStyle="#ead7ff";ctx.lineWidth=1.5;
+  for(const k of aoeCells()){const [x,y]=k.split(",").map(Number);ctx.fillRect(x*T+2,y*T+2,T-4,T-4);ctx.strokeRect(x*T+3,y*T+3,T-6,T-6)}
+  ctx.restore();
+}
+function gameWin(){
+  game.dead=false;
+  localStorage.removeItem("neonDungeonSave");
+  $("upgradeChoices").style.display="none";
+  $("restart").style.display="block";
+  $("resume").style.display="none";
+  $("modalTitle").textContent="NEON DUNGEON CLEAR";
+  $("modalText").textContent=`50층 최종 보스 처치 · 레벨 ${game.level} · 점수 ${game.score}`;
+  $("overlay").style.display="flex";
+  log("🏆 NEON DUNGEON CLEAR! 최종 보스를 쓰러뜨리고 던전을 정복했다.");
+  render();
+}
+function areaAttack(){
+  if(game.dead)return;
+  if((game.aoeCd||0)>0){log("범위 공격 쿨타임: "+game.aoeCd+"턴.");return;}
+  const cells=aoeCells(), targets=game.enemies.filter(e=>cells.has(e.x+","+e.y));
+  if(targets.length)beginPlayerAttack();
+  for(const e of targets){const dmg=dealPlayerAttack(e,Math.max(1,Math.round(game.atk*1.5)),"aoe");log("범위 공격! "+(e.name||"적")+"에게 "+dmg+" 피해.")}
+  let kills=0;
+  for(const e of [...targets])if(e.hp<=0){
+    game.enemies=game.enemies.filter(v=>v!==e);kills++;
+    if(e.type==="boss"){game.bossDefeated=true;game.score+=100+game.floor*10;if(game.floor===50){gameWin();return;}log("보스 처치! 다음 층으로 갈 수 있다.")}
+    else game.score+=10;
+    if(game.killHeal){const healed=Math.min(game.killHeal,game.maxHp-game.hp);game.hp+=healed;if(healed)log("전투 회복으로 HP +"+healed+".")}
+    gainXP(xpReward());log("적 처치. 경험치 획득.");
+  }
+  if(kills && completeFloorIfCleared())return;
+  log("범위 공격으로 "+targets.length+"명 타격"+(kills?" · "+kills+"명 처치":"")+"!");
+  game.aoeCd=4;game.aoePreview=false;game.aiming=false;enemyTurn();endTurn();
+}
+
+function drawRangedRange(){
+  if(!game.aiming)return;
+  const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+  ctx.save();
+  ctx.globalAlpha=.32;
+  for(const [dx,dy] of dirs){
+    for(let i=1;i<=6;i++){
+      const x=game.x+dx*i,y=game.y+dy*i;
+      if(x<0||y<0||x>=W||y>=H||game.map[y][x]==="#")break;
+      ctx.fillStyle="#c77dff";
+      ctx.fillRect(x*T+2,y*T+2,T-4,T-4);
+      ctx.strokeStyle="#e5c8ff";
+      ctx.lineWidth=1.5;
+      ctx.strokeRect(x*T+3,y*T+3,T-6,T-6);
+    }
+  }
+  ctx.globalAlpha=1;
+  ctx.restore();
+}
+
+function setAiming(on){
+  game.aiming=!!on;
+  const b=document.querySelector('[data-action="ranged"]');
+  if(b){b.classList.toggle("aiming",game.aiming);b.textContent=game.aiming?"🎯 조준 중 · 방향 선택":"🏹 원거리 공격";}
+  render();
+}
+function rangedTurn(dx,dy){
+  if(game.dead)return;
+  let tx=game.x,ty=game.y,target=null;
+  for(let i=1;i<=6;i++){
+    tx=game.x+dx*i;ty=game.y+dy*i;
+    if(tx<0||ty<0||tx>=W||ty>=H||game.map[ty][tx]==="#")break;
+    const e=enemyAt(tx,ty);
+    if(e){target=e;break;}
+  }
+  if(!target){log("그 방향에 공격할 적이 없다.");setAiming(false);return;}
+  beginPlayerAttack();
+  const dmg=dealPlayerAttack(target,game.atk,"ranged");
+  log("원거리 공격! "+dmg+" 피해.");
+  setAiming(false);
+  if(target.hp<=0){
+    game.enemies=game.enemies.filter(v=>v!==target);
+    if(target.type==="boss"){game.bossDefeated=true;game.score+=100+game.floor*10;if(game.floor===50){gameWin();return;}log("보스 처치! 다음 층으로 갈 수 있다.");}
+    else game.score+=10;
+    if(game.killHeal){
+      const healed=Math.min(game.killHeal,game.maxHp-game.hp);
+      game.hp+=healed;if(healed)log("전투 회복으로 HP +"+healed+".");
+    }
+    gainXP(xpReward());
+    log("적 처치. 경험치 획득.");
+    if(completeFloorIfCleared())return;
+  }else enemyTurn();
+  endTurn();
+}
+function bossAttack(e){
+  e.phase=(e.phase||0)+1;
+  const dist=Math.abs(e.x-game.x)+Math.abs(e.y-game.y);
+  const moveBossTowardPlayer=()=>{
+    const occupied=new Set(game.enemies.filter(v=>v!==e).map(v=>key(v.x,v.y)));
+    const dx=Math.sign(game.x-e.x),dy=Math.sign(game.y-e.y);
+    const opts=Math.abs(game.x-e.x)>=Math.abs(game.y-e.y)?[[dx,0],[0,dy],[0,-dy],[-dx,0]]:[[0,dy],[dx,0],[-dx,0],[0,-dy]];
+    for(const [mx,my] of opts){
+      const nx=e.x+mx,ny=e.y+my;
+      if(nx<1||ny<1||nx>=W-1||ny>=H-1||game.map[ny][nx]==="#"||occupied.has(key(nx,ny))||(nx===game.x&&ny===game.y))continue;
+      e.x=nx;e.y=ny;return true;
+    }
+    return false;
+  };
+  if(e.pattern==="berserker"){
+    if(dist<=1){const dmg=e.atk+4+(e.enhanced?4:0)+(e.stage||0)*2;game.hp-=incomingDamage(dmg);log("철갑 파괴자의 강타! "+dmg+" 피해.");return true;}
+    if(e.phase%3===0){
+      const dx=Math.sign(game.x-e.x),dy=Math.sign(game.y-e.y);
+      const tx=e.x+dx*2,ty=e.y+dy*2;
+      if(tx>=1&&tx<W-1&&ty>=1&&ty<H-1&&game.map[ty][tx]!=="#"&&!enemyAt(tx,ty)&&(tx!==game.x||ty!==game.y)){
+        e.x=tx;e.y=ty;log("철갑 파괴자가 돌진했다!");
+        if(Math.abs(e.x-game.x)+Math.abs(e.y-game.y)<=1){const dmg=e.atk+6+(e.enhanced?4:0);game.hp-=incomingDamage(dmg);log("돌진 적중! "+dmg+" 피해.");}
+        return true;
+      }
+    }
+    moveBossTowardPlayer();
+  }else if(e.pattern==="arcane"){
+    if(e.phase%2===0 && (e.x===game.x||e.y===game.y) && dist<=7){
+      const dmg=e.atk+2+(e.enhanced?4:0)+(e.stage||0)*2;game.hp-=incomingDamage(dmg);log("공허술사의 직선 마법! "+dmg+" 피해.");return true;
+    }
+    if(e.phase%3===0){
+      const hit=Math.abs(e.x-game.x)<=1&&Math.abs(e.y-game.y)<=1;
+      if(hit){const dmg=e.atk+4+(e.enhanced?4:0)+(e.stage||0)*2;game.hp-=incomingDamage(dmg);log("공허술사의 십자 폭발! "+dmg+" 피해.");return true;}
+    }
+    if(e.phase%2===1)moveBossTowardPlayer();
+  }else if(e.pattern==="summoner"){
+    if(e.phase%3===0){
+      const spots=[[e.x+1,e.y],[e.x-1,e.y],[e.x,e.y+1],[e.x,e.y-1]];
+      for(const [sx,sy] of spots){
+        if(sx>0&&sy>0&&sx<W-1&&sy<H-1&&game.map[sy][sx]!=="#"&&!enemyAt(sx,sy)&&!(sx===game.x&&sy===game.y)){
+          const hp=18+game.floor*2+(e.enhanced?12:0);game.enemies.push({x:sx,y:sy,type:"crawler",hp,maxHp:hp,atk:5+Math.floor(game.floor/4)+(e.enhanced?2:0)});
+          log("군단의 어머니가 졸개를 소환했다.");break;
+        }
+      }
+    }
+    if(dist===1){const dmg=e.atk+(e.enhanced?4:0);game.hp-=incomingDamage(dmg);log("군단의 어머니가 물어뜯었다! "+dmg+" 피해.");return true;}
+    moveBossTowardPlayer();
+  }
+  return false;
+}
+function clearShotFrom(x,y){
+  if(x!==game.x&&y!==game.y)return false;
+  const dx=Math.sign(game.x-x),dy=Math.sign(game.y-y);
+  let cx=x+dx,cy=y+dy;
+  while(cx!==game.x||cy!==game.y){
+    if(game.map[cy]?.[cx]==="#")return false;
+    cx+=dx;cy+=dy;
+  }
+  return true;
+}
+function shooterCanAttack(e,x=e.x,y=e.y){
+  const dist=Math.abs(x-game.x)+Math.abs(y-game.y);
+  return e.type==="shooter"&&dist>1&&dist<=enemyRange()&&clearShotFrom(x,y);
+}
+function shortestStepToGoal(e,occupied,isGoal){
+  const start=key(e.x,e.y),queue=[{x:e.x,y:e.y,first:null}],seen=new Set([start]);
+  let head=0;
+  while(head<queue.length){
+    const cur=queue[head++];
+    if((cur.x!==e.x||cur.y!==e.y)&&isGoal(cur.x,cur.y))return cur.first;
+    const dirs=[[0,-1],[1,0],[0,1],[-1,0]].sort((a,b)=>
+      (Math.abs(cur.x+a[0]-game.x)+Math.abs(cur.y+a[1]-game.y))-
+      (Math.abs(cur.x+b[0]-game.x)+Math.abs(cur.y+b[1]-game.y)));
+    for(const [dx,dy] of dirs){
+      const x=cur.x+dx,y=cur.y+dy,k=key(x,y);
+      if(x<1||y<1||x>=W-1||y>=H-1||game.map[y][x]==="#"||seen.has(k)||occupied.has(k)||(x===game.x&&y===game.y))continue;
+      seen.add(k);queue.push({x,y,first:cur.first||{x,y}});
+    }
+  }
+  return null;
+}
+function planRegularEnemyActions(){
+  const occupied=new Set(game.enemies.map(e=>key(e.x,e.y))),plans=new Map();
+  for(const e of game.enemies){
+    if(e.type==="boss")continue;
+    const dist=Math.abs(e.x-game.x)+Math.abs(e.y-game.y);
+    if(dist===1){plans.set(e,{type:"attack",kind:"melee"});continue;}
+    if(shooterCanAttack(e,e.x,e.y)){plans.set(e,{type:"attack",kind:"ranged"});continue;}
+    const old=key(e.x,e.y);occupied.delete(old);
+    let step=null;
+    if(e.type==="shooter"){
+      step=shortestStepToGoal(e,occupied,(x,y)=>shooterCanAttack(e,x,y));
+    }
+    if(!step){
+      step=shortestStepToGoal(e,occupied,(x,y)=>Math.abs(x-game.x)+Math.abs(y-game.y)===1);
+    }
+    if(step){plans.set(e,{type:"move",x:step.x,y:step.y});occupied.add(key(step.x,step.y));}
+    else{plans.set(e,{type:"wait"});occupied.add(old);}
+  }
+  return plans;
+}
+function enemyTurn(){
+  game.aoeCd=Math.max(0,(game.aoeCd||0)-1);
+  const snapshot=[...game.enemies],plans=planRegularEnemyActions();
+  for(const e of snapshot){
+    if(game.dead)break;
+    if(!game.enemies.includes(e))continue;
+    if(e.type==="boss"){
+      bossAttack(e);
+      if(game.hp<=0){game.hp=0;game.dead=true;game.score+=game.floor*25;gameOver();return;}
+      continue;
+    }
+    const action=plans.get(e);
+    if(action?.type==="attack"){
+      const dmg=action.kind==="melee"?Math.max(1,e.atk+rnd(3)):2+rnd(4)+Math.floor(game.floor/2);
+      game.hp-=incomingDamage(dmg);
+      log((action.kind==="melee"?"적의 반격! ":"원거리 공격! ")+dmg+" 피해.");
+      if(game.hp<=0){game.hp=0;game.dead=true;game.score+=game.floor*25;gameOver();return;}
+    }else if(action?.type==="move"){
+      e.x=action.x;e.y=action.y;
+    }
+  }
+}
+
+function endTurn(){game.guarding=false;game.perfectGuard=false;saveGame();render();}
+function heal(){
+  if(game.dead)return;
+  if(game.potions<=0){log("물약이 없다.");return}
+  if(game.hp>=game.maxHp){log("HP가 이미 가득하다.");return}
+  game.combo=0;game.potions--;const n=Math.min(game.maxHp-game.hp,14+game.level*2);game.hp+=n;log("물약 사용. HP +"+n+".");enemyTurn();endTurn();
+}
+function guard(){
+  if(game.dead)return;
+  game.perfectGuard=predictedDamageNextTurn()>0;
+  game.guarding=true;
+  game.combo=0;
+  log(game.perfectGuard?"🛡 퍼펙트 가드 자세! 공격을 막고 반격을 준비한다.":"🛡 가드 자세. 다음 턴 받는 피해 50% 감소.");
+  enemyTurn();game.guarding=false;game.perfectGuard=false;endTurn();
+}
+function waitTurn(){if(!game.dead){log("한 턴 대기.");game.combo=0;enemyTurn();endTurn()}}
+function stairs(){
+  if(game.dead)return;
+  if(game.x===game.stairs.x&&game.y===game.stairs.y){
+    if(game.floor%10===0 && !game.bossDefeated){log("보스가 살아 있다. 먼저 처치해야 한다.");return;}
+    if(game.floor>=50){gameWin();return;}
+    game.floor++;game.score+=game.floor*10;buildFloor();saveGame();
+  }
+  else log("계단 위에서만 이동할 수 있다.");
+}
+function saveGame(){
+  if(!game)return;
+  localStorage.setItem("neonDungeonSave",JSON.stringify(game));
+}
+function migrateSavedEnemyBalance(){
+  if((game.enemyBalanceVersion||0)>=3)return;
+  const floor=game.floor||1,step=Math.max(0,floor-1),t=Math.min(1,step/49);
+  const hpRatio=(1.5+step*0.05+0.18*(Math.exp(3*t)-1))/(1+step*0.025);
+  const atkRatio=(1.25+step*0.035+0.12*(Math.exp(2.5*t)-1))/(1+step*0.02);
+  const bossCurve=(Math.exp(2.2*t)-1)/(Math.exp(2.2)-1);
+  for(const e of game.enemies||[]){
+    const hpMult=e.type==="boss"?1+1.1*bossCurve:hpRatio;
+    const atkMult=e.type==="boss"?1+0.7*bossCurve:atkRatio;
+    e.maxHp=Math.max(1,Math.round(e.maxHp*hpMult));
+    e.hp=Math.max(1,Math.min(e.maxHp,Math.round(e.hp*hpMult)));
+    e.atk=Math.max(1,Math.round(e.atk*atkMult));
+  }
+  game.enemyBalanceVersion=3;
+}
+function loadGame(){
+  const raw=localStorage.getItem("neonDungeonSave");
+  if(!raw){log("저장된 게임이 없다.");return}
+  try{game=JSON.parse(raw);migrateSavedEnemyBalance();game.dead=false;game.killHeal=game.killHeal||0;game.maxLevel=50;game.bossHistory=game.bossHistory||[];game.upgradeLevels=game.upgradeLevels||{hp:0,atk:0,heal:0};game.aiming=false;game.aoeCd=game.aoeCd||0;game.guarding=false;game.perfectGuard=false;game.attackBonus=game.attackBonus||0;game.combo=game.combo||0;game.damageNumbers=game.damageNumbers||[];game.bossDefeated=game.bossDefeated??(game.floor%10!==0);game.enemies=game.enemies||[];$("overlay").style.display="none";log("저장된 런을 복구했다.");saveGame();render();}
+  catch(e){log("저장 데이터가 손상됐다.");}
+}
+function gameOver(){
+  $("upgradeChoices").style.display="none";
+  $("restart").style.display="block";
+  $("resume").style.display="block";
+  saveGame();$("modalTitle").textContent="GAME OVER";$("modalText").textContent=`${game.floor}층에서 쓰러짐 · 점수 ${game.score} · 레벨 ${game.level}`;
+  $("resume").style.display="block";$("overlay").style.display="flex";render();
+}
+
+function predictedEnemyMoves(){
+  const plans=planRegularEnemyActions();
+  return game.enemies.map(e=>{
+    if(e.type!=="boss"){
+      const action=plans.get(e)||{type:"wait"};
+      return {...e,nx:action.type==="move"?action.x:e.x,ny:action.type==="move"?action.y:e.y,attack:action.type==="attack",attackKind:action.kind};
+    }
+    const dist=Math.abs(e.x-game.x)+Math.abs(e.y-game.y),phase=(e.phase||0)+1;
+    let attack=false;
+    if(e.pattern==="berserker")attack=dist<=1;
+    else if(e.pattern==="arcane")attack=(phase%2===0&&(e.x===game.x||e.y===game.y)&&dist<=7)||(phase%3===0&&Math.abs(e.x-game.x)<=1&&Math.abs(e.y-game.y)<=1);
+    else if(e.pattern==="summoner")attack=dist===1;
+    return {...e,nx:e.x,ny:e.y,attack,attackKind:"boss",boss:true};
+  });
+}
+
+function drawPredictions(){
+  const now=Date.now(),pulse=.78+.22*Math.sin(now/115);
+  for(const e of predictedEnemyMoves()){
+    if(e.attack){
+      ctx.save();
+      ctx.fillStyle=`rgba(255,35,65,${.27*pulse})`;
+      ctx.fillRect(game.x*T+1,game.y*T+1,T-2,T-2);
+      ctx.strokeStyle="#ff263f";ctx.lineWidth=4;
+      ctx.strokeRect(game.x*T+2,game.y*T+2,T-4,T-4);
+      ctx.strokeStyle="#ffd5da";ctx.lineWidth=1.5;
+      ctx.strokeRect(game.x*T+6,game.y*T+6,T-12,T-12);
+      ctx.beginPath();ctx.moveTo(game.x*T+7,game.y*T+7);ctx.lineTo(game.x*T+T-7,game.y*T+T-7);
+      ctx.moveTo(game.x*T+T-7,game.y*T+7);ctx.lineTo(game.x*T+7,game.y*T+T-7);ctx.stroke();
+      if(e.attackKind==="ranged"){
+        ctx.shadowColor="#ff263f";ctx.shadowBlur=10;ctx.strokeStyle="#ff6477";ctx.lineWidth=3;ctx.setLineDash([7,4]);
+        ctx.beginPath();ctx.moveTo(e.x*T+20,e.y*T+20);ctx.lineTo(game.x*T+20,game.y*T+20);ctx.stroke();ctx.setLineDash([]);
+      }
+      ctx.restore();
+      // 다음 턴 공격자가 눈에 띄도록 적 위에 붉은 느낌표 배지를 표시한다.
+      ctx.save();ctx.globalAlpha=pulse;ctx.fillStyle="#ff263f";ctx.strokeStyle="#fff0f2";ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(e.x*T+31,e.y*T+8,10,0,Math.PI*2);ctx.fill();ctx.stroke();
+      ctx.fillStyle="#fff";ctx.font="900 15px system-ui,sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText("!",e.x*T+31,e.y*T+8);ctx.restore();
+    }else if(e.nx!==e.x||e.ny!==e.y){
+      ctx.save();
+      ctx.strokeStyle="#ffd166";ctx.lineWidth=3;
+      ctx.beginPath();ctx.moveTo(e.x*T+20,e.y*T+20);ctx.lineTo(e.nx*T+20,e.ny*T+20);ctx.stroke();
+      ctx.fillStyle="#ffd166";ctx.beginPath();ctx.arc(e.nx*T+20,e.ny*T+20,5,0,Math.PI*2);ctx.fill();
+      ctx.restore();
+    }
+  }
+}
+function predictedDamageNextTurn(){
+  let total=0;
+  for(const e of game.enemies){
+    const dist=Math.abs(e.x-game.x)+Math.abs(e.y-game.y);
+    if(e.type==="boss"){
+      const phase=(e.phase||0)+1;
+      if(e.pattern==="berserker"){
+        if(dist<=1) total+=e.atk+4+(e.enhanced?4:0)+(e.stage||0)*2;
+        else if(phase%3===0){
+          const dx=Math.sign(game.x-e.x),dy=Math.sign(game.y-e.y);
+          const tx=e.x+dx*2,ty=e.y+dy*2;
+          if(tx===game.x&&ty===game.y) total+=e.atk+6+(e.enhanced?4:0);
+        }
+      }else if(e.pattern==="arcane"){
+        if(phase%2===0 && (e.x===game.x||e.y===game.y) && dist<=7) total+=e.atk+2+(e.enhanced?4:0)+(e.stage||0)*2;
+        else if(phase%3===0 && Math.abs(e.x-game.x)<=1 && Math.abs(e.y-game.y)<=1) total+=e.atk+4+(e.enhanced?4:0)+(e.stage||0)*2;
+      }else if(e.pattern==="summoner" && dist===1){
+        total+=e.atk+(e.enhanced?4:0);
+      }
+      continue;
+    }
+    if(dist===1) total+=Math.max(1,e.atk+2);
+    else if(shooterCanAttack(e,e.x,e.y)) total+=5+Math.floor(game.floor/2);
+  }
+  return total;
+}
+
+function updateBossHud(){
+  const hud=$("bossHud");
+  const boss=game.enemies.find(e=>e.type==="boss");
+  if(!boss){hud.classList.remove("show");return;}
+  hud.classList.add("show");
+  const colors={berserker:"#ff5a36",arcane:"#9b5cff",summoner:"#42d392"};
+  const color=boss.finalBoss?"#00e5ff":colors[boss.pattern]||"#a855f7";
+  $("bossName").textContent=(boss.enhanced?"⚡ 강화 · ":"")+boss.name;
+  $("bossHpText").textContent=Math.max(0,boss.hp)+" / "+boss.maxHp;
+  const pct=clamp(boss.hp/boss.maxHp*100,0,100);
+  $("bossHpBar").style.width=pct+"%";
+  $("bossHpBar").style.background=color;
+  $("bossHud").style.borderColor=color;
+  const stage=(boss.stage||0)+1;
+  $("bossSub").textContent=(boss.finalBoss?"50층 최종 보스 · 처치하면 엔딩":boss.enhanced?"40층 강화 보스":"보스")+" · 페이즈 "+stage;
+}
+
+function render(){
+  if(!game)return;
+  updateBossHud();
+  $("hp").textContent=game.hp+"/"+game.maxHp;
+  $("hpText").textContent=game.hp+" / "+game.maxHp;
+  const hpPct=game.maxHp>0?clamp(game.hp/game.maxHp*100,0,100):0;
+  $("hpBar").style.width=hpPct+"%";
+  $("hpBar").style.background=hpPct<=25?"var(--danger)":hpPct<=50?"var(--gold)":"var(--accent)";
+  const forecast=predictedDamageNextTurn();
+  const lethal=forecast>=game.hp&&forecast>0&&!game.dead;
+  $("hpForecast").classList.toggle("lethal-warning",lethal);
+  $("hpForecast").textContent=lethal
+    ?`⚠ 사망 위험! 다음 적 턴 최대 피해 ${forecast} · 현재 HP ${game.hp}`
+    :forecast>0?`다음 적 턴 최대 예상 피해 -${forecast} · 예상 HP ${Math.max(0,game.hp-forecast)}/${game.maxHp}`:"다음 턴 예상 피해 없음";
+  $("potionCount").textContent="💊 회복 물약 ×"+game.potions;
+  $("guardHud").textContent=game.attackBonus?"✨ 반격 +"+game.attackBonus:"🛡 가드 준비";
+  $("comboHud").textContent="콤보 ×"+(game.combo||0);
+  const ac=game.aoeCd||0;
+  $("aoeHud").textContent=ac>0?"💥 "+ac+"턴":"💥 준비";
+  const ab=$("aoeBtn"); if(ab){ab.textContent=ac>0?ac:".";ab.classList.toggle("aoe-ready",ac===0);ab.classList.toggle("aoe-cooldown",ac>0)}
+  $("xpHud").textContent="Lv."+game.level+" · XP "+game.xp+"/"+xpToNext();
+  $("atk").textContent=game.atk;
+  $("lv").textContent=game.level+" ("+game.xp+"/"+xpToNext()+")";
+  $("floor").textContent=game.floor;
+  const sx=canvas.width/(W*T),sy=canvas.height/(H*T);
+  ctx.setTransform(sx,0,0,sy,0,0);
+  ctx.fillStyle="#070910";ctx.fillRect(0,0,W*T,H*T);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    if(game.map[y][x]==="#"){ctx.fillStyle="#080b12";ctx.fillRect(x*T,y*T,T,T)}
+    else {
+      ctx.fillStyle=(x+y)%2?"#273044":"#222a3b";
+      ctx.fillRect(x*T,y*T,T,T);
+      ctx.strokeStyle="#35415a";ctx.lineWidth=1;ctx.strokeRect(x*T+.5,y*T+.5,T-1,T-1);
+    }
+  }
+  drawRangedRange();
+  drawAoERange();
+  for(const l of game.loot){
+    ctx.fillStyle="#7bb7ff";
+    ctx.fillRect(l.x*T+10,l.y*T+10,20,20);
+    ctx.fillStyle="#eaf3ff";
+    ctx.fillRect(l.x*T+17,l.y*T+13,6,14);
+  }
+  ctx.fillStyle="#ffd166";ctx.fillRect(game.stairs.x*T+10,game.stairs.y*T+10,20,20);
+  for(const e of game.enemies){
+    if(e.type==="boss"){
+      const bossColor=e.finalBoss?"#00e5ff":e.pattern==="berserker"?"#ff5a36":e.pattern==="arcane"?"#9b5cff":"#42d392";
+      ctx.fillStyle=bossColor;ctx.fillRect(e.x*T+3,e.y*T+3,34,34);
+      ctx.strokeStyle=e.enhanced?"#fff1a8":"#ffffff";ctx.lineWidth=e.enhanced?4:2;ctx.strokeRect(e.x*T+2,e.y*T+2,36,36);
+    }else{
+      ctx.fillStyle=e.type==="brute"?"#ff8a65":e.type==="shooter"?"#c77dff":"#ff657a";
+      ctx.fillRect(e.x*T+7,e.y*T+7,26,26);
+    }
+    ctx.fillStyle="#171a22";ctx.fillRect(e.x*T+4,e.y*T+1,32,5);
+    ctx.fillStyle="#65e6b0";ctx.fillRect(e.x*T+4,e.y*T+1,32*Math.max(0,e.hp/e.maxHp),5);
+    ctx.font="bold 9px sans-serif";ctx.textAlign="center";ctx.textBaseline="bottom";
+    ctx.fillStyle="#f1f5ff";ctx.strokeStyle="#070910";ctx.lineWidth=3;
+    ctx.strokeText(Math.max(0,e.hp)+"/"+e.maxHp,e.x*T+20,e.y*T+1);
+    ctx.fillText(Math.max(0,e.hp)+"/"+e.maxHp,e.x*T+20,e.y*T+1);
+  }
+  ctx.fillStyle="#65e6b0";ctx.fillRect(game.x*T+6,game.y*T+6,28,28);
+  ctx.fillStyle="#07100c";ctx.fillRect(game.x*T+13,game.y*T+12,5,5);ctx.fillRect(game.x*T+23,game.y*T+12,5,5);
+  drawPredictions();
+  drawDamageNumbers();
+}
+document.querySelectorAll("[data-move]").forEach(b=>b.addEventListener("click",()=>{const [x,y]=b.dataset.move.split(",").map(Number);game.aiming?rangedTurn(x,y):playerTurn(x,y)}));
+document.querySelectorAll('[data-action="wait"]').forEach(b=>b.addEventListener("click",waitTurn));
+$("aoeBtn").addEventListener("click",()=>{if((game.aoeCd||0)>0){areaAttack();return}game.aoePreview=true;render();setTimeout(areaAttack,80)});
+document.querySelector('[data-action="ranged"]').addEventListener("click",()=>setAiming(!game.aiming));
+document.querySelector('[data-action="heal"]').addEventListener("click",heal);
+document.querySelector('[data-action="stairs"]').addEventListener("click",stairs);
+document.querySelector('[data-action="guard"]').addEventListener("click",guard);
+$("save").onclick=()=>{saveGame();log("현재 런 저장 완료.")};
+$("load").onclick=loadGame;
+$("restart").onclick=newGame;
+$("resume").onclick=loadGame;
+window.addEventListener("keydown",e=>{
+  const m={ArrowUp:[0,-1],w:[0,-1],W:[0,-1],ArrowDown:[0,1],s:[0,1],S:[0,1],ArrowLeft:[-1,0],a:[-1,0],A:[-1,0],ArrowRight:[1,0],d:[1,0],D:[1,0]};
+  if(m[e.key]){e.preventDefault();game.aiming?rangedTurn(...m[e.key]):playerTurn(...m[e.key])}
+  else if(e.code==="Space"){e.preventDefault();waitTurn()}
+  else if(e.key==="h"||e.key==="H")heal();
+  else if(e.key==="f"||e.key==="F"){e.preventDefault();setAiming(!game.aiming);}
+  else if(e.key==="q"||e.key==="Q"){e.preventDefault();if((game.aoeCd||0)===0){game.aoePreview=true;render();setTimeout(areaAttack,80)}else areaAttack()}
+  else if(e.key==="e"||e.key==="E"){e.preventDefault();stairs()}
+  else if(e.key==="g"||e.key==="G"){e.preventDefault();guard()}
+});
+window.addEventListener("resize",render);
+window.addEventListener("beforeunload",saveGame);
+
+const saved=localStorage.getItem("neonDungeonSave");
+if(saved){
+  try{
+    game=JSON.parse(saved);migrateSavedEnemyBalance();game.aiming=false;game.guarding=false;game.perfectGuard=false;game.attackBonus=game.attackBonus||0;game.combo=game.combo||0;game.damageNumbers=game.damageNumbers||[];
+    $("modalTitle").textContent="저장된 게임 발견";
+    $("modalText").textContent=`${game.floor}층 · 레벨 ${game.level} · 점수 ${game.score}`;
+    $("resume").style.display="block";$("overlay").style.display="flex";
+    saveGame();render();
+  }catch(e){newGame()}
+}else newGame();
+</script>
+</body>
+</html>
